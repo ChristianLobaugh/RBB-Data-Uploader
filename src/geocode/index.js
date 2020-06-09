@@ -4,9 +4,9 @@ const csv = require('csv-parser');
 const {createObjectCsvWriter : createCsvWriter} = require('csv-writer');
 const getStream = require('get-stream');
 
-const { geocode } = require('./geo');
+const { fromAddress } = require('./fromAddress');
 
-async function cli_handler(csvIn, csvOut=undefined) {
+async function fromAddressCli(csvIn, csvOut=undefined) {
     try {
         csvIn = csvIn || csvIn.replace(/(?<!\.csv)$/, '.csv') // add .csv if not there
         csvOut = csvOut || csvIn.replace(/\.csv$/, '_geocode.csv'); // default to ${csvIn}_gecode.csv
@@ -50,7 +50,7 @@ function newCsvWriter(csvOut) {
     });
 }
 
-async function iterateGently(data, csvWriter) {
+async function iterateGently(data, csvWriter, addressCol='address') {
     let geo;
     let last = new Date();
     let now = last;
@@ -59,7 +59,7 @@ async function iterateGently(data, csvWriter) {
         // if we have to wait 1sec per request anyway, may as well write out to disk for each record...
         // TODO: find more rate-friendly data source
         const rowOut = JSON.parse(JSON.stringify(row));
-        geo = await geocode(row.address);
+        geo = await fromAddress(row[addressCol]);
         await csvWriter.writeRecords([buildRow(row, geo)]);
 
         now = new Date();
@@ -108,5 +108,5 @@ function buildRow(row, geo) {
 // #endregion Helper Functions
 
 module.exports = {
-    cli_handler: cli_handler,
+    fromAddressCli: fromAddressCli,
 }

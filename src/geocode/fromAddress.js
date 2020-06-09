@@ -5,7 +5,7 @@ const geocoder = NodeGeocoder({
     formatter: null // 'gpx', 'string', ...
 });
 
-async function geocode(address) {
+async function fromAddress(address) {
     try {
         const geo = await geocoder.geocode(address);
         if (geo.length > 0) {
@@ -18,10 +18,10 @@ async function geocode(address) {
         }
     } catch (error) {
         console.error(`Failed to fetch geocode for address ${address} with error: ${error.message}`);
-        return Promise.resolve({});
+        return {};
     }
 }
 
 module.exports = {
-    geocode: geocode,
+    fromAddress: fromAddress,
 };

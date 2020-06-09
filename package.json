@@ -22,6 +22,7 @@
   },
   "homepage": "https://github.com/brentmclark/RBB-airtable#readme",
   "dependencies": {
+    "@googlemaps/google-maps-services-js": "^3.0.0",
     "airtable": "^0.8.1",
     "boxen": "^4.2.0",
     "chalk": "^4.0.0",
