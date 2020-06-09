@@ -1,4 +1,3 @@
-
 const {Client, Status} = require("@googlemaps/google-maps-services-js");
 
 const client = new Client({});
@@ -16,13 +15,14 @@ async function fromNameCityState(name, city, state) {
             },
             timeout: 1000,
         });
-        if (response.data.status == 'OK') {
+        if (response.data.status === 'OK') {
             return response.data.candidates[0];
         } else {
             return {};
         }
     } catch (error) {
-        console.error(error.response.data);
+        console.error(`Error encountered searching for: ${name}`);
+        return {};
     }
 }
 
