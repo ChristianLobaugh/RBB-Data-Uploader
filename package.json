@@ -29,6 +29,7 @@
     "dotenv": "^8.2.0",
     "get-stream": "^5.1.0",
     "lodash.chunk": "^4.2.0",
+    "slug": "^3.3.0",
     "yargs": "^15.3.1"
   }
 }

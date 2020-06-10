@@ -23,6 +23,7 @@ const availableFields = [...Object.keys(schema)]
 const fieldsToIgnore = ['Source', 'Storefront']
 const fieldsToDedupe = availableFields.filter(field => !fieldsToIgnore.includes(field))
 
+const slug = require('slug')
 const cloudinary = require('cloudinary').v2
 cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
@@ -73,13 +74,11 @@ async function create(tablename, csvFile, csvSource) {
           const normalizedCategory = businessCategories[csvRow.fields['Original Category'].toLowerCase()]
           csvRow.fields.Category = normalizedCategory
         }
-        // Upload image to Cloudinary and store Cloudinary public_id ref 
-        // TODO: need to slugify business name
-        // TODO: what to do with upload failures
+        // upload image to Cloudinary and store Cloudinary public_id ref 
         const originalImageURL = csvRow.fields.Image
         if (originalImageURL) {
           // cloudinary upload destination is business-images/{business-name-as-a-slug} 
-          const businessSlug = slugify(csvRow.fields['Business Name'])
+          const businessSlug = slug(csvRow.fields['Business Name'])
           const public_id = `business-images/${businessSlug}`
           csvRow.fields.Image = public_id
           
