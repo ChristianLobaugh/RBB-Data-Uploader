@@ -83,11 +83,15 @@ async function create(tablename, csvFile, csvSource) {
           csvRow.fields.Image = public_id
           
           // call cloudinary uploader to push image to Cloudinary
-          cloudinary.uploader.upload(originalImageURL, {
+          await cloudinary.uploader.upload(originalImageURL, {
                 public_id,
-                resource_type: "auto"
+                resource_type: "auto",
+                tags: "#black-business"
               },
-              function(error, result) {console.log(result, error)}
+              function(error, image) {
+                if (error) {console.warn(error)}                
+                console.log("Uploaded " + image.public_id + " to Cloudinary")
+              }
           )
         }
         // Add the record to the deduped list.
