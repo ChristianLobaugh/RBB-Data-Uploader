@@ -2,8 +2,6 @@ const {Client, Status} = require("@googlemaps/google-maps-services-js");
 
 const client = new Client({});
 
-'Cami Cakes Cupcakes Jacksonville'
-
 async function fromNameCityState(name, city, state) {
     try {
         response = await client.findPlaceFromText({
@@ -16,13 +14,20 @@ async function fromNameCityState(name, city, state) {
             timeout: 1000,
         });
         if (response.data.status === 'OK') {
-            return response.data.candidates[0];
+            if (response.data.candidates.length > 1) {
+                console.warn(`Multiple candidates for, ${name}: ${response.data.candidates.map((c) => c.name).join(', ')}`)
+            }
+            return response.data.candidates;
         } else {
-            return {};
+            if (response.data.status !== 'ZERO_RESULTS') {
+                console.info(response.data);
+            }
+            return [{}];
         }
     } catch (error) {
-        console.error(`Error encountered searching for: ${name}`);
-        return {};
+        console.log(error)
+        console.error(`Error encountered searching for: ${name}. Error: ${error}`);
+        return [{}];
     }
 }
 
@@ -33,13 +38,26 @@ async function fromPhoneNumber(phone) {
               input: formatPhoneNumber(phone),
               inputtype: 'phonenumber',
               key: process.env.GOOGLE_MAPS_API_KEY,
+              fields: ['formatted_address', 'name', 'geometry']
             },
             timeout: 1000,
         });
         
-        console.log(response.data);
+        if (response.data.status === 'OK') {
+            if (response.data.candidates.length > 1) {
+                console.warn(`Multiple candidates for, ${phone}: ${response.data.candidates.map((c) => c.name).join(', ')}`)
+            }
+            return response.data.candidates;
+        } else {
+            if (response.data.status !== 'ZERO_RESULTS') {
+                console.info(response.data);
+            }
+            return [{}];
+        }
     } catch (error) {
-        console.error(error.response);
+        console.log(error)
+        console.error(`Error encountered searching for: ${phone}. Error: ${error}`);
+        return [{}];
     }
 }
 
@@ -60,4 +78,5 @@ function formatPhoneNumber(phone) {
 
 module.exports = {
     fromNameCityState: fromNameCityState,
+    fromPhoneNumber: fromPhoneNumber,
 };

@@ -6,7 +6,7 @@ const getStream = require('get-stream');
 
 const { fromAddress } = require('./fromAddress');
 
-async function fromAddressCli(csvIn, csvOut=undefined) {
+async function csvFromAddress(csvIn, csvOut=undefined) {
     try {
         csvIn = csvIn || csvIn.replace(/(?<!\.csv)$/, '.csv') // add .csv if not there
         csvOut = csvOut || csvIn.replace(/\.csv$/, '_geocode.csv'); // default to ${csvIn}_gecode.csv
@@ -108,5 +108,5 @@ function buildRow(row, geo) {
 // #endregion Helper Functions
 
 module.exports = {
-    fromAddressCli: fromAddressCli,
+    csvFromAddress: csvFromAddress,
 }

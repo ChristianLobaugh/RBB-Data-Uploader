@@ -4,16 +4,42 @@ const csv = require('csv-parser');
 const {createObjectCsvWriter : createCsvWriter} = require('csv-writer');
 const getStream = require('get-stream');
 
-const { fromNameCityState } = require('./fromName');
+const { fromNameCityState, fromPhoneNumber } = require('./fromName');
 
-async function fromNameCli(csvIn, csvOut=undefined) {
+async function csvFromPhoneThenName(csvIn, csvOut=undefined) {
     try {
         csvIn = csvIn || csvIn.replace(/(?<!\.csv)$/, '.csv') // add .csv if not there
         csvOut = csvOut || csvIn.replace(/\.csv$/, '_geocode.csv'); // default to ${csvIn}_gecode.csv
 
         const data = await readCsv(csvIn);
         const csvWriter = newCsvWriter(csvOut);
-        await iterateGently(data, csvWriter);
+        await iterateOnPhoneThenName(data, csvWriter);
+    } catch (error) {
+        console.error(`Failed to run geocoding: ${error.message}`);
+    }
+}
+
+async function csvFromName(csvIn, csvOut=undefined) {
+    try {
+        csvIn = csvIn || csvIn.replace(/(?<!\.csv)$/, '.csv') // add .csv if not there
+        csvOut = csvOut || csvIn.replace(/\.csv$/, '_geocode.csv'); // default to ${csvIn}_gecode.csv
+
+        const data = await readCsv(csvIn);
+        const csvWriter = newCsvWriter(csvOut);
+        await iterateOnNameCityState(data, csvWriter);
+    } catch (error) {
+        console.error(`Failed to run geocoding: ${error.message}`);
+    }
+}
+
+async function csvFromPhone(csvIn, csvOut=undefined) {
+    try {
+        csvIn = csvIn || csvIn.replace(/(?<!\.csv)$/, '.csv') // add .csv if not there
+        csvOut = csvOut || csvIn.replace(/\.csv$/, '_geocode.csv'); // default to ${csvIn}_gecode.csv
+
+        const data = await readCsv(csvIn);
+        const csvWriter = newCsvWriter(csvOut);
+        await iterateOnPhone(data, csvWriter);
     } catch (error) {
         console.error(`Failed to run geocoding: ${error.message}`);
     }
@@ -33,6 +59,7 @@ function newCsvWriter(csvOut) {
             { id: 'website', title: 'website' },
             { id: 'image', title: 'image' },
             { id: 'phone', title: 'phone' },
+            { id: 'geoName', title: 'geoName' },
             { id: 'latitude', title: 'latitude' },
             { id: 'longitude', title: 'longitude' },
             { id: 'formattedAddress', title: 'formattedAddress' },
@@ -40,24 +67,101 @@ function newCsvWriter(csvOut) {
     });
 }
 
-async function iterateGently(data, csvWriter, nameCol='businessName', cityStateCol='cityState') {
+async function iterateOnNameCityState(data, csvWriter, nameCol='businessName', cityStateCol='cityState') {
     let geo;
     let last = new Date();
     let now = last;
+    let rows = [];
     for (row of data) {
         // if we have to wait Xsec per request anyway, may as well write out to disk for each record...
         // TODO: find more rate-friendly data source
         if (row.onlineBased === 'FALSE') {
             geo = await fromNameCityState(row[nameCol], row[cityStateCol]);
-            console.log(geo)
-            await csvWriter.writeRecords([buildRow(row, geo)]);
-    
+            rows = rows.concat(geo.map((g) => buildRow(row, g)));
             now = new Date();
             await delay(Math.max(0, (100 - (now - last))));
             last = now;
         } else {
-            await csvWriter.writeRecords([buildRow(row, {})]);
+            rows.push(buildRow(row, {}))
         }
+
+        if (rows.length >= 10) {
+            await csvWriter.writeRecords(rows);
+            rows = [];
+        }
+    }
+}
+
+async function iterateOnPhone(data, csvWriter, phoneCol='phone') {
+    let geo;
+    let last = new Date();
+    let now = last;
+    let rows = [];
+    for (row of data) {
+        // if we have to wait Xsec per request anyway, may as well write out to disk for each record...
+        // TODO: find more rate-friendly data source
+        // if (row.onlineBased === 'FALSE') {
+        if (row[phoneCol] !== undefined && row[phoneCol] !== '') {
+            geo = await fromPhoneNumber(row[phoneCol]);
+            console.log(geo);
+            rows = rows.concat(geo.map((g) => buildRow(row, g)));
+            now = new Date();
+            await delay(Math.max(0, (100 - (now - last))));
+            last = now;
+        } else {
+            rows.push(buildRow(row, {}))
+        }
+
+        if (rows.length >= 10) {
+            await csvWriter.writeRecords(rows);
+            rows = [];
+        }
+    }
+
+    if (rows.length > 0) {
+        await csvWriter.writeRecords(rows);
+    }
+}
+
+async function iterateOnPhoneThenName(data, csvWriter) {
+    const phoneCol = 'phone';
+    const nameCol = 'businessName';
+    const cityStateCol = 'location';
+    let geo;
+    let last = new Date();
+    let now = last;
+    let rows = [];
+    for (row of data) {
+        if (row[phoneCol] !== undefined && row[phoneCol] !== '') {
+            geo = await fromPhoneNumber(row[phoneCol]);
+            if (geo === undefined || Object.keys(geo[0]).length === 0) {
+                console.warn(`Falling back to name/city-state for ${row[nameCol]}`)
+                geo = [];
+                // TODO: this rabbit hole is getting deep...
+                for (location of row[cityStateCol].split(',')) {
+                    geo = geo.concat(await fromNameCityState(row[nameCol], location.trim()));
+                    now = new Date();
+                    await delay(Math.max(0, (100 - (now - last))));
+                    last = now;
+                }
+            }
+            console.log(geo);
+            rows = rows.concat(geo.map((g) => buildRow(row, g)));
+            now = new Date();
+            await delay(Math.max(0, (100 - (now - last))));
+            last = now;
+        } else {
+            rows.push(buildRow(row, {}))
+        }
+
+        if (rows.length >= 10) {
+            await csvWriter.writeRecords(rows);
+            rows = [];
+        }
+    }
+
+    if (rows.length > 0) {
+        await csvWriter.writeRecords(rows);
     }
 }
 
@@ -90,6 +194,7 @@ function buildRow(row, geo) {
             rowOut.latitude = geo.geometry.location.lat;
             rowOut.longitude = geo.geometry.location.lng;
         }
+        rowOut.geoName = geo.name;
         rowOut.formattedAddress = geo.formatted_address;
     }
     return rowOut;
@@ -97,5 +202,7 @@ function buildRow(row, geo) {
 // #endregion Helper Functions
 
 module.exports = {
-    fromNameCli: fromNameCli,
+    csvFromName: csvFromName,
+    csvFromPhone: csvFromPhone,
+    csvFromPhoneThenName: csvFromPhoneThenName,
 }
