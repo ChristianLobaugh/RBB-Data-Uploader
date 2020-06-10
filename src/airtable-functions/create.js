@@ -23,6 +23,13 @@ const availableFields = [...Object.keys(schema)]
 const fieldsToIgnore = ['Source', 'Storefront']
 const fieldsToDedupe = availableFields.filter(field => !fieldsToIgnore.includes(field))
 
+const cloudinary = require('cloudinary').v2
+cloudinary.config({
+  cloud_name: process.env.CLOUD_NAME,
+  api_key: process.env.API_KEY,
+  api_secret: process.env.API_SECRET
+})
+
 async function create(tablename, csvFile, csvSource) {
   const csvData = await parseData(csvFile, csvSource)
   listRecords(tablename, tableData => {
@@ -65,6 +72,24 @@ async function create(tablename, csvFile, csvSource) {
         if (originalCategory) {
           const normalizedCategory = businessCategories[csvRow.fields['Original Category'].toLowerCase()]
           csvRow.fields.Category = normalizedCategory
+        }
+        // Upload image to Cloudinary and store Cloudinary public_id ref 
+        // TODO: need to slugify business name
+        // TODO: what to do with upload failures
+        const originalImageURL = csvRow.fields.Image
+        if (originalImageURL) {
+          // cloudinary upload destination is business-images/{business-name-as-a-slug} 
+          const businessSlug = slugify(csvRow.fields['Business Name'])
+          const public_id = `business-images/${businessSlug}`
+          csvRow.fields.Image = public_id
+          
+          // call cloudinary uploader to push image to Cloudinary
+          cloudinary.uploader.upload(originalImageURL, {
+                public_id,
+                resource_type: "auto"
+              },
+              function(error, result) {console.log(result, error)}
+          )
         }
         // Add the record to the deduped list.
         dedupedUploadList.push(csvRow)

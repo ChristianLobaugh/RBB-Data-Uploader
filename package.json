@@ -24,6 +24,7 @@
     "airtable": "^0.8.1",
     "boxen": "^4.2.0",
     "chalk": "^4.0.0",
+    "cloudinary": "^1.22.0",
     "csv-parser": "^2.3.3",
     "dotenv": "^8.2.0",
     "get-stream": "^5.1.0",
