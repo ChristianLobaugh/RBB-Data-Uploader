@@ -24,6 +24,7 @@ const fieldsToIgnore = ['Source', 'Storefront']
 const fieldsToDedupe = availableFields.filter(field => !fieldsToIgnore.includes(field))
 
 const slug = require('slug')
+const crypto = require('crypto')
 const cloudinary = require('cloudinary').v2
 cloudinary.config({
   cloud_name: process.env.CLOUD_NAME,
@@ -79,14 +80,17 @@ async function create(tablename, csvFile, csvSource) {
         if (originalImageURL) {
           // cloudinary upload destination is business-images/{business-name-as-a-slug} 
           const businessSlug = slug(csvRow.fields['Business Name'])
-          const public_id = `business-images/${businessSlug}`
+          // create hash of originalImageURL to add to public_id to protect against duplicates
+          const imageHash = crypto.createHash('md5').update(originalImageURL).digest('hex');
+          const public_id = `business-images/${businessSlug}-${imageHash}`
           csvRow.fields.Image = public_id
           
           // call cloudinary uploader to push image to Cloudinary
           await cloudinary.uploader.upload(originalImageURL, {
                 public_id,
                 resource_type: "auto",
-                tags: "#black-business"
+                tags: "#black-business",
+                overwrite: false
               },
               function(error, image) {
                 if (error) {console.warn(error)}                
